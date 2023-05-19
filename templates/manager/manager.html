@@ -1,0 +1,281 @@
+{% extends 'manager/base.html' %}
+{% load static %}
+
+{% block head_region %}
+    <title>linux文件管理模拟</title>
+{% endblock %}
+
+{% block button_region %}
+    <button id="read" type="button" class="layui-btn layui-btn-sm layui-btn-normal">请求读</button>
+    <button id="write" type="button" class="layui-btn layui-btn-sm layui-btn-normal">请求写</button>
+    <button id="execute" type="button" class="layui-btn layui-btn-sm layui-btn-normal">请求执行</button>
+    <button id="add_file" type="button" class="layui-btn layui-btn-sm layui-btn-normal">添加文件</button>
+{% endblock %}
+
+{#{% block data_region %}#}
+{#    <table class="layui-hide" id="container_table" lay-filter="container_table"></table>#}
+{#{% endblock %}#}
+
+{% block data_region %}
+    <table class="layui-table" id="container_table" lay-skin="line" lay-data="{limit: Number.MAX_VALUE, id:'container_table'}" lay-filter="container_table">
+        <colgroup>
+            <col style="width: 70px">
+        </colgroup>
+
+        <thead>
+        <tr>
+            <th lay-data="{field:'file_name'}">文件名</th>
+            <th lay-data="{field:'permissions'}">权限</th>
+            <th lay-data="{field:'owner'}">属主</th>
+            <th lay-data="{field:'group'}">属组</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% if file_list %}
+            {% for file in file_list %}
+                <tr>
+                    <td>{{ file.name }}</td>
+                    <td>{{ file.permissions }}</td>
+                    <td>{{ file.owner }}</td>
+                    <td>{{ file.group }}</td>
+                </tr>
+            {% endfor %}
+        {% else %}
+            <p>列表为空</p>
+        {% endif %}
+        </tbody>
+    </table>
+{% endblock %}
+
+{% block footer_region %}
+    <span> <span id="rowCountDisplay"></span> 个文件</span>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{% static 'layui/layui.js' %}"></script>
+    <!-- 具体的 JavaScript 代码 -->
+
+    <script>
+        layui.use('table', function(){
+            var table = layui.table;
+            //监听行单击事件（双击事件为：rowDouble）
+            table.on('row(container_table)', function(obj){
+            //标注选中样式
+            obj.tr.addClass('layui-bg-blue active').siblings().removeClass('layui-bg-blue active');
+          });
+        });
+    </script>
+
+    <script>
+        var read_button = document.getElementById('read');
+        read_button.onclick = function () {
+            var activeElements = document.getElementsByClassName("layui-bg-blue active");
+            num = activeElements[0].getAttribute("data-index");
+            read(num)
+                .then(() => {
+                    delayedReload();
+                })
+                .catch((error) => {
+                    console.error("An error occurred:", error);
+                });
+        }
+
+        var write_button = document.getElementById('write');
+        write_button.onclick = function () {
+            var activeElements = document.getElementsByClassName("layui-bg-blue active");
+            num = activeElements[0].getAttribute("data-index");
+            write(num)
+                .then(() => {
+                    delayedReload();
+                })
+                .catch((error) => {
+                    console.error("An error occurred:", error);
+                });
+        }
+
+        var execute_button = document.getElementById('execute');
+        execute_button.onclick = function () {
+            var activeElements = document.getElementsByClassName("layui-bg-blue active");
+            num = activeElements[0].getAttribute("data-index");
+            execute(num)
+                .then(() => {
+                    delayedReload();
+                })
+                .catch((error) => {
+                    console.error("An error occurred:", error);
+                });
+        }
+
+        var add_file_button = document.getElementById('add_file');
+        add_file_button.onclick = function () {
+            layer.prompt({title: '请输入文件名', formType: 0}, function(file_name, index){
+                layer.close(index);
+                layer.prompt({title: '请输入权限', formType: 0}, function(permissions, index){
+                    layer.close(index);
+                    add_file(file_name, permissions)
+                        .then(() => {
+                            delayedReload();
+                        })
+                        .catch((error) => {
+                            console.error("An error occurred:", error);
+                        });
+                });
+            });
+
+        }
+
+        function read(num) {
+            return new Promise((resolve, reject) => {
+                var csrftoken = document.getElementsByName("csrfmiddlewaretoken")[0].value;
+                var xhr = new XMLHttpRequest();
+                var url = "read/";
+                var method = "POST";
+                xhr.open(method, url, true);
+                xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+                xhr.setRequestHeader("X-CSRFToken", csrftoken);
+                var data = {num: num}
+                var params = JSON.stringify(data);
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4) {
+                        try {
+                            var response = JSON.parse(xhr.responseText);
+                            console.log(response);
+                            if (response['status'] === 'read_success'){
+                                layer.msg('您有读取权限',{time: 0});
+                                resolve();
+                            }else if (response['status'] === 'read_failed'){
+                                layer.alert('权限不足', {icon: 5});
+                                reject();
+                            }
+                        } catch (error) {
+                            console.error("Failed to parse JSON response:", error);
+                            layer.alert('请联系开发者', {icon: 5});
+                        }
+                    }
+                };
+                layer.msg('正在请求读取权限', {icon: 16, shade: 0.01});
+                xhr.send(params);
+            });
+        }
+
+        function write(num) {
+            return new Promise((resolve, reject) => {
+                var csrftoken = document.getElementsByName("csrfmiddlewaretoken")[0].value;
+                var xhr = new XMLHttpRequest();
+                var url = "write/";
+                var method = "POST";
+                xhr.open(method, url, true);
+                xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+                xhr.setRequestHeader("X-CSRFToken", csrftoken);
+                var data = {num: num}
+                var params = JSON.stringify(data);
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4) {
+                        try {
+                            var response = JSON.parse(xhr.responseText);
+                            console.log(response);
+                            if (response['status'] === 'write_success'){
+                                layer.msg('您有写入权限',{time: 0});
+                                resolve();
+                            }else if (response['status'] === 'write_failed'){
+                                layer.alert('权限不足', {icon: 5});
+                                reject();
+                            }
+                        } catch (error) {
+                            console.error("Failed to parse JSON response:", error);
+                            layer.alert('请联系开发者', {icon: 5});
+                        }
+                    }
+                };
+                layer.msg('请求写入',{time: 0});
+                xhr.send(params);
+            });
+        }
+
+        function execute(num) {
+            return new Promise((resolve, reject) => {
+                var csrftoken = document.getElementsByName("csrfmiddlewaretoken")[0].value;
+                var xhr = new XMLHttpRequest();
+                var url = "execute/";
+                var method = "POST";
+                xhr.open(method, url, true);
+                xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+                xhr.setRequestHeader("X-CSRFToken", csrftoken);
+                var data = {num: num}
+                var params = JSON.stringify(data);
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4) {
+                        try {
+                            var response = JSON.parse(xhr.responseText);
+                            console.log(response);
+                            if (response['status'] === 'execute_success'){
+                                layer.msg('您有执行权限',{time: 0});
+                                resolve();
+                            }else if (response['status'] === 'execute_failed'){
+                                layer.alert('权限不足', {icon: 5});
+                                reject();
+                            }
+                        } catch (error) {
+                            console.error("Failed to parse JSON response:", error);
+                            layer.alert('请联系开发者', {icon: 5});
+                        }
+                    }
+                };
+                layer.msg('请求执行',{time: 0});
+                setTimeout(function() {
+                    xhr.send(params);
+                }, 1000);
+            });
+        }
+
+        function add_file(file_name, permissions) {
+            return new Promise((resolve, reject) => {
+                var csrftoken = document.getElementsByName("csrfmiddlewaretoken")[0].value;
+                var xhr = new XMLHttpRequest();
+                var url = "add/";
+                var method = "POST";
+                xhr.open(method, url, true);
+                xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+                xhr.setRequestHeader("X-CSRFToken", csrftoken);
+                var data = {file_name: file_name, permissions: permissions};
+                var params = JSON.stringify(data);
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4) {
+                        try {
+                            var response = JSON.parse(xhr.responseText);
+                            console.log(response);
+                            if (response['status'] === 'add_success'){
+                                layer.msg('添加成功',{time: 0});
+                                resolve();
+                            }else if (response['status'] === 'add_failed'){
+                                layer.alert('添加失败', {icon: 5});
+                                reject();
+                            }
+                        } catch (error) {
+                            console.error("Failed to parse JSON response:", error);
+                            layer.alert('请联系开发者', {icon: 5});
+                        }
+                    }
+                };
+                layer.msg('正在添加文件',{time: 0});
+                setTimeout(function() {
+                   xhr.send(params);
+                }, 1500); // 暂缓3秒执行xhr.send(params)
+                });
+        }
+
+        function delayedReload() {
+            setTimeout(function() {
+                location.reload();
+            }, 2500); // 延迟3秒钟（或3000毫秒）
+        }
+    </script>
+
+    <script>
+        const table = document.getElementById('container_table');
+        const rowCount = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr').length;
+        document.getElementById('rowCountDisplay').innerText = rowCount;
+    </script>
+{% endblock %}
+
+
