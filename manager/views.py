@@ -69,12 +69,12 @@ def write(request):
             else:
                 return HttpResponse(json.dumps({"status": "write_failed"}))
         elif is_user_in_group(user, group):
-            if permissions[1] == "w":
+            if permissions[4] == "w":
                 return HttpResponse(json.dumps({"status": "write_success"}))
             else:
                 return HttpResponse(json.dumps({"status": "write_failed"}))
         else:
-            if permissions[2] == "w":
+            if permissions[7] == "w":
                 return HttpResponse(json.dumps({"status": "write_success"}))
             else:
                 return HttpResponse(json.dumps({"status": "write_failed"}))
